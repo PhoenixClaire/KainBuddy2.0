@@ -1,7 +1,9 @@
 package com.mobdeve.s13.martin.elaine.kabu20.voice
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -10,6 +12,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import okhttp3.*
 import java.io.File
 import java.io.FileOutputStream
@@ -148,6 +151,72 @@ class STTClient (
         recordingThread?.start()
     }
 
+/**
+    private fun startAudioRecording() {
+        try {
+            // 1️⃣ Check microphone permission
+            if (ActivityCompat.checkSelfPermission(
+                    activity,
+                    Manifest.permission.RECORD_AUDIO
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.e("STT", "Microphone permission not granted.")
+                onError("Microphone permission denied. Please enable it in settings.")
+                return
+            }
+
+            // 2️⃣ Prepare output file
+            audioFile = File(activity.cacheDir, "stt_audio_${System.currentTimeMillis()}.wav")
+
+            // 3️⃣ Initialize AudioRecord
+            audioRecord = AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                sampleRate,
+                channelConfig,
+                audioFormat,
+                bufferSize
+            ).also { record ->
+                if (record.state != AudioRecord.STATE_INITIALIZED) {
+                    Log.e("STT", "AudioRecord initialization failed.")
+                    onError("Failed to initialize microphone. Please try again.")
+                    return
+                }
+            }
+
+            // 4️⃣ Start recording
+            isRecording = true
+            audioRecord?.startRecording()
+            Log.d("STT", "Audio recording started.")
+
+            // 5️⃣ Background thread to write raw audio
+            recordingThread = Thread {
+                try {
+                    FileOutputStream(audioFile!!).use { out ->
+                        val buffer = ByteArray(bufferSize)
+                        while (isRecording) {
+                            val bytesRead = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+                            if (bytesRead > 0) out.write(buffer, 0, bytesRead)
+                        }
+                    }
+                    Log.d("STT", "Audio recording stopped. File saved: ${audioFile?.absolutePath}")
+                } catch (e: IOException) {
+                    Log.e("STT", "File I/O error: ${e.message}")
+                    onError("Error saving recorded audio.")
+                } catch (e: Exception) {
+                    Log.e("STT", "Recording thread error: ${e.message}")
+                    onError("Recording error: ${e.message}")
+                }
+            }.apply { start() }
+
+        } catch (e: SecurityException) {
+            Log.e("STT", "SecurityException: ${e.message}")
+            onError("Microphone access blocked by system.")
+        } catch (e: Exception) {
+            Log.e("STT", "Unexpected error starting recording: ${e.message}")
+            onError("Unexpected error while starting recording.")
+        }
+    }
+**/
     private fun stopAudioRecording(){
         try {
             isRecording = false

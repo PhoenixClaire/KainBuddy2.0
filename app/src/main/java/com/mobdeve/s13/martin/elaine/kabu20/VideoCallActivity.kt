@@ -36,6 +36,7 @@ class VideoCallActivity : AppCompatActivity(){
     private var greeted = false
 
     private lateinit var voice: VoiceChatManager
+    private val RECORD_AUDIO_REQUEST_CODE = 101
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -162,6 +163,18 @@ class VideoCallActivity : AppCompatActivity(){
             }
         }, ContextCompat.getMainExecutor(this))
     }
+    private fun checkMicPermission(): Boolean {
+        val permission = Manifest.permission.RECORD_AUDIO
+        val granted = PackageManager.PERMISSION_GRANTED
+
+        return if (ContextCompat.checkSelfPermission(this, permission) != granted) {
+            ActivityCompat.requestPermissions(this, arrayOf(permission), RECORD_AUDIO_REQUEST_CODE)
+            false
+        } else {
+            true
+        }
+    }
+
 
     //Unity Lifecycle
     override fun onPause() {
@@ -181,5 +194,25 @@ class VideoCallActivity : AppCompatActivity(){
         voice.stoplistening()
         voice.stopAllAudio()
     }
+
+    //Mic permission
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == RECORD_AUDIO_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission just granted ✅
+                voice = VoiceChatManager(this)
+                voice.generateGreeting()
+            } else {
+                Log.e("VideoCallActivity", "Microphone permission denied")
+            }
+        }
+    }
+
 
 }
