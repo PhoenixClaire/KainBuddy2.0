@@ -116,60 +116,67 @@ class VoiceChatManager (
         if (listening) return
         listening = true
 
-        stt = STTClient(
-            activity,
-            onPartial = { /* optional live captions */ },
-            onFinal = { finalText, audioFile ->
-                listening = false
-                if (finalText.isBlank()) return@STTClient
+        activity.runOnUiThread {   // ✅ add this guard
+            stt = STTClient(
+                activity,
+                onPartial = { /* optional */ },
+                onFinal = { finalText, audioFile ->
+                    listening = false
+                    if (finalText.isBlank() || audioFile == null) return@STTClient
 
-                Log.d("VoiceChat", "User said: $finalText")
+                    Log.d("VoiceChat", "User said: $finalText")
 
-                var emotion = "Unknown"
-                var confidence = 0.0
-                var continued = false
+                    var emotion = "Unknown"
+                    var confidence = 0.0
+                    var continued = false
 
-                // fire SER in parallel
-                audioFile?.let {
-                    SERClient(activity).analyze(it) { emo, conf ->
+                    SERClient(activity).analyze(audioFile) { emo, conf ->
                         if (!continued) {
                             continued = true
                             emotion = emo
                             confidence = conf
                             Log.d("VoiceChat", "Detected emotion: $emo ($conf)")
                             continueConversation(finalText, emotion, confidence)
+
+                            // (optional) tidy cache after use
+                            try { audioFile.delete() } catch (_: Exception) {}
                         }
                     }
-                }
 
-                // fallback if SER is slow (>1.5s)
-                activity.window.decorView.postDelayed({
-                    if (!continued) {
-                        Log.w("VoiceChat", "SER timeout → continuing without emotion")
-                        continued = true
-                        continueConversation(finalText, emotion, confidence)
+                    // fallback if SER is slow (>1.5s)
+                    activity.window.decorView.postDelayed({
+                        if (!continued) {
+                            Log.w("VoiceChat", "SER timeout → continuing without emotion")
+                            continued = true
+                            continueConversation(finalText, emotion, confidence)
+                            // don't delete file yet; SER may still be reading
+                        }
+                    }, 1500)
+                },
+                onError = { err ->
+                    listening = false
+                    Log.e("VoiceChat", "STT error: $err")
+                },
+                fallbackTTS = { line, after ->
+                    activity.runOnUiThread {
+                        tts.speak(
+                            text = line,
+                            isLastSentence = true,
+                            onDone = {
+                                Log.d("VoiceChat", "Fallback spoken: $line")
+                                triggerIdle()
+                                after()
+                            },
+                            onStart = { triggerTalking() }
+                        )
                     }
-                }, 1500)
-            },
-            onError = { err ->
-                Log.e("VoiceChat", "STT error: $err")
-            },
-            fallbackTTS = { line, after ->
-                activity.runOnUiThread {
-                    tts.speak(
-                        text = line,
-                        isLastSentence = true,
-                        onDone = {
-                            Log.d("VoiceChat", "Fallback spoken: $line")
-                            triggerIdle()
-                            after() // restart listening
-                        },
-                        onStart = { triggerTalking() }
-                    )
-                }
-            }
-        ).also { it.start() }
+                },
+                // (optional) override SenseVoice endpoint here if not using the default:
+                // senseVoiceUrl = "http://<your-ip>:6006/asr"
+            ).also { it.start() }
+        }
     }
+
 
 
 
