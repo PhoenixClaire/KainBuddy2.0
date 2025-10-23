@@ -38,7 +38,7 @@ class STTClient(
     private val onFinal: (String, File?) -> Unit,
     private val onError: (String) -> Unit,
     private val fallbackTTS: ((String, () -> Unit) -> Unit)? = null,
-    private val senseVoiceUrl: String = "http://172.20.10.5:6006/asr"   // <-- adjust to your server
+    private val senseVoiceUrl: String = "http://192.168.52.85:6006/asr"   // <-- adjust to your server
 ) {
 
     // ---- Mic / WAV config ----
@@ -78,9 +78,11 @@ class STTClient(
         if (ActivityCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
+            ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.RECORD_AUDIO), 1001)
             onError("Microphone permission denied. Please enable it in settings.")
             return
         }
+
 
         // Prepare file (we’ll finalize WAV header on stop)
         audioFile = File(activity.cacheDir, "utterance_${System.currentTimeMillis()}.wav")

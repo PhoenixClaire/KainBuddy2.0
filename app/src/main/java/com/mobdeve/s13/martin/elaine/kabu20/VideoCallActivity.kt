@@ -25,6 +25,8 @@ import com.mobdeve.s13.martin.elaine.kabu20.databinding.ActivityVideoCallBinding
 import com.mobdeve.s13.martin.elaine.kabu20.voice.VoiceChatManager
 import com.unity3d.player.UnityPlayer
 import android.Manifest
+import com.mobdeve.s13.martin.elaine.kabu20.emotion.FaceEmotionAnalyzer
+import android.view.View
 
 
 class VideoCallActivity : AppCompatActivity(){
@@ -36,7 +38,6 @@ class VideoCallActivity : AppCompatActivity(){
     private var greeted = false
 
     private lateinit var voice: VoiceChatManager
-    private val RECORD_AUDIO_REQUEST_CODE = 101
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,12 +46,13 @@ class VideoCallActivity : AppCompatActivity(){
         setContentView(binding.root)
 
         //embed unity animaiton - KaBu's face
-       if(UnityHolder.unityPlayer == null){
-           UnityHolder.unityPlayer = UnityPlayer(this)
-       }
+        if(UnityHolder.unityPlayer == null){
+            UnityHolder.unityPlayer = UnityPlayer(this)
+        }
 
         val unityPlayer = UnityHolder.getOrCreatePlayer(this)
         val unityView = unityPlayer.view
+
         (unityView.parent as? ViewGroup)?.removeView(unityView)
         unityView.layoutParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
@@ -61,6 +63,9 @@ class VideoCallActivity : AppCompatActivity(){
         unityPlayer.windowFocusChanged(true)
         unityPlayer.requestFocus()
         unityPlayer.resume()
+
+        binding.user.bringToFront()
+
 
         //camera
         startCamera()
@@ -116,13 +121,8 @@ class VideoCallActivity : AppCompatActivity(){
             return
         }
 
-        previewView = PreviewView(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        }
-        binding.user.addView(previewView)
+        val previewView = binding.previewView
+        val overlay = binding.overlayView
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
@@ -132,12 +132,23 @@ class VideoCallActivity : AppCompatActivity(){
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
 
-            val imageAnalyzer = ImageAnalysis.Builder().build().also {
-                it.setAnalyzer(ContextCompat.getMainExecutor(this)) { imageProxy ->
-                    // Optional: add SER/FER later
-                    imageProxy.close()
+            val imageAnalyzer = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+                .also {
+                    it.setAnalyzer(
+                        ContextCompat.getMainExecutor(this),
+                        FaceEmotionAnalyzer(
+                            context = this
+                        ) { emotion, confidence ->
+                            runOnUiThread {
+                                binding.userEmotionText.text = "Emotion: $emotion (${(confidence * 100).toInt()}%)"
+                                // Optional: Unity animation trigger
+                                // UnityHolder.unityPlayer?.SendMessage("KaBuController", "SetEmotion", emotion)
+                            }
+                        }
+                    )
                 }
-            }
 
             val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
@@ -163,18 +174,6 @@ class VideoCallActivity : AppCompatActivity(){
             }
         }, ContextCompat.getMainExecutor(this))
     }
-    private fun checkMicPermission(): Boolean {
-        val permission = Manifest.permission.RECORD_AUDIO
-        val granted = PackageManager.PERMISSION_GRANTED
-
-        return if (ContextCompat.checkSelfPermission(this, permission) != granted) {
-            ActivityCompat.requestPermissions(this, arrayOf(permission), RECORD_AUDIO_REQUEST_CODE)
-            false
-        } else {
-            true
-        }
-    }
-
 
     //Unity Lifecycle
     override fun onPause() {
@@ -194,25 +193,5 @@ class VideoCallActivity : AppCompatActivity(){
         voice.stoplistening()
         voice.stopAllAudio()
     }
-
-    //Mic permission
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == RECORD_AUDIO_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission just granted ✅
-                voice = VoiceChatManager(this)
-                voice.generateGreeting()
-            } else {
-                Log.e("VideoCallActivity", "Microphone permission denied")
-            }
-        }
-    }
-
 
 }

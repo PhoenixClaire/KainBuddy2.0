@@ -97,4 +97,7 @@ dependencies {
     implementation(project(":unityLibrary"))
 
     implementation(files("../unityLibrary/libs/unity-classes.jar"))
+
+    implementation(libs.face.detection)
+    implementation(libs.tensorflow.lite)
 }

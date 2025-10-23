@@ -151,7 +151,7 @@ class ChatbotActivity : AppCompatActivity() {
         }
         
         val request = Request.Builder()
-            .url("http://172.20.10.2:11434/api/chat") //replace with server IP
+            .url("http://172.20.10.3:11434/api/chat") //replace with server IP
             .post(RequestBody.create("application/json".toMediaTypeOrNull(), jsonBody.toString()))
             .build()
 
@@ -222,7 +222,7 @@ class ChatbotActivity : AppCompatActivity() {
     }
 
     private fun speakWithTTS(text: String) {
-        val ttsUrl = "http://172.20.10.2:5000/tts"
+        val ttsUrl = "http://172.20.10.3:5001/tts"
 
         val appFilesDir = filesDir.absolutePath
         val filename = "tts_output.wav"
