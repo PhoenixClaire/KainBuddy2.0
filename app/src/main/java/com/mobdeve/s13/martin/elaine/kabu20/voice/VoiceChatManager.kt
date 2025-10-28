@@ -9,6 +9,8 @@ import org.json.JSONObject
 class VoiceChatManager (
     private val activity: Activity
 ){
+    private val TEST_MODE = true
+
     private var greeted = false
     private val messages = JSONArray().apply {
         put(JSONObject().apply {
@@ -43,6 +45,11 @@ class VoiceChatManager (
     private var listening = false
 
     fun generateGreeting() {
+        if (TEST_MODE) {
+            Log.d("VoiceChat", "TEST MODE - Getting skipped")
+            return
+        }
+
         if (greeted) return
         greeted = true
 
@@ -86,6 +93,11 @@ class VoiceChatManager (
 
     //make kabu prompt the user
     fun playGreeting(greeting: String){
+        if (TEST_MODE) {
+            Log.d("VoiceChat", "TEST MODE - Would play: $greeting")
+            return
+        }
+
         messages.put(JSONObject().apply {
             put("role", "system")
             put("content", greeting)
@@ -113,6 +125,17 @@ class VoiceChatManager (
     }
 
     fun startListening() {
+        if (TEST_MODE) {
+            Log.d("VoiceChat", "TEST MODE - Mock listening")
+            listening = true
+            // Simulate user input after delay
+            activity.window.decorView.postDelayed({
+                listening = false
+                Log.d("VoiceChat", "TEST MODE - Mock user speech detected")
+            }, 2000)
+            return
+        }
+
         if (listening) return
         listening = true
 
