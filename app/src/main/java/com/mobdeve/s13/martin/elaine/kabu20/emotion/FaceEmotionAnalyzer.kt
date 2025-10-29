@@ -25,6 +25,13 @@ class FaceEmotionAnalyzer(
     private val onEmotionDetected: (String, Float) -> Unit
 ) : ImageAnalysis.Analyzer {
 
+    // Properties to store model requirements
+    private var inputHeight: Int = 48
+    private var inputWidth: Int = 48
+    private var inputChannels: Int = 1
+    private var requiresRGB: Boolean = false
+    private var isChannelFirst: Boolean = false // Add this for models with [1, channels, height, width]
+
     private val detector = FaceDetection.getClient(
         FaceDetectorOptions.Builder()
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
@@ -47,13 +54,38 @@ class FaceEmotionAnalyzer(
             val modelBuffer = loadModelFileFromAssets(context, "ferplus_model_pd_best.tflite")
             if (modelBuffer != null) {
                 tflite = Interpreter(modelBuffer)
-                Log.d("FaceEmotionAnalyzer", "✅ TFLite model loaded successfully.")
-            } else {
-                Log.w("FaceEmotionAnalyzer", "⚠️ Model not found, using fallback mode.")
+                analyzeModelInputRequirements() // Call this to set up the properties
             }
         } catch (e: Exception) {
-            Log.e("FaceEmotionAnalyzer", "❌ Model load error: ${e.message}")
+            Log.e("FER", "Load failed: ${e.message}")
         }
+    }
+
+    private fun analyzeModelInputRequirements() {
+        val inputTensor = tflite?.getInputTensor(0)
+        val inputShape = inputTensor?.shape()
+
+        // Check if it's channel-first format [1, channels, height, width]
+        isChannelFirst = when {
+            inputShape?.size == 4 && inputShape[1] == 3 -> true // [1, 3, height, width]
+            else -> false
+        }
+
+        if (isChannelFirst) {
+            // Channel-first format: [batch_size, channels, height, width]
+            inputHeight = inputShape?.get(2) ?: 48      // Change height based on model
+            inputWidth = inputShape?.get(3) ?: 48          // Change width based on model
+            inputChannels = inputShape?.get(1) ?: 1         // Change channels based on model
+        } else {
+            // Channel-last format: [batch_size, height, width, channels]
+            inputHeight = inputShape?.get(1) ?: 48      // Change height based on model
+            inputWidth = inputShape?.get(2) ?: 48       // Change width based on model
+            inputChannels = inputShape?.get(3) ?: 1     // Change channels based on model
+        }
+
+        requiresRGB = inputChannels == 3
+
+        Log.d("FER", "Model configured for: ${inputHeight}x${inputWidth}x${inputChannels}, channelFirst: $isChannelFirst")
     }
 
     @SuppressLint("UnsafeOptInUsageError")
@@ -166,20 +198,27 @@ class FaceEmotionAnalyzer(
     }
 
     private fun runTFLiteModel(faceBitmap: Bitmap): Pair<String, Float> {
-        val inputSize = 48
-        val resized = Bitmap.createScaledBitmap(faceBitmap, inputSize, inputSize, true)
-        val gray = toGrayscale(resized)
+        // Use the stored model requirements instead of querying every time
+        val resized = Bitmap.createScaledBitmap(faceBitmap, inputWidth, inputHeight, true)
 
-        val inputBuffer = ByteBuffer.allocateDirect(4 * inputSize * inputSize)
+        // Change preprocessing based on channel requirements
+        val processedBitmap = when (inputChannels) {
+            1 -> toGrayscale(resized)  // Single channel (grayscale)
+            3 -> toRGB(resized)        // Three channels (RGB)
+            else -> toGrayscale(resized)
+        }
+
+        // Change buffer size based on input dimensions
+        val inputBuffer = ByteBuffer.allocateDirect(4 * inputHeight * inputWidth * inputChannels)
             .order(ByteOrder.nativeOrder())
         inputBuffer.rewind()
 
-        for (y in 0 until inputSize) {
-            for (x in 0 until inputSize) {
-                val pixel = gray.getPixel(x, y)
-                val r = (pixel shr 16 and 0xFF)
-                inputBuffer.putFloat((r / 255f).coerceIn(0f, 1f))
-            }
+        if (isChannelFirst) {
+            // Channel-first processing: [channels, height, width]
+            processChannelFirst(processedBitmap, inputBuffer)
+        } else {
+            // Channel-last processing: [height, width, channels]
+            processChannelLast(processedBitmap, inputBuffer)
         }
 
         val output = Array(1) { FloatArray(emotionLabels.size) }
@@ -192,6 +231,48 @@ class FaceEmotionAnalyzer(
         return label to conf
     }
 
+    private fun processChannelLast(bitmap: Bitmap, buffer: ByteBuffer) {
+        for (y in 0 until inputHeight) {
+            for (x in 0 until inputWidth) {
+                val pixel = bitmap.getPixel(x, y)
+                when (inputChannels) {
+                    1 -> {
+                        // Grayscale processing - use red channel for simplicity
+                        val r = (pixel shr 16 and 0xFF)
+                        buffer.putFloat((r / 255f).coerceIn(0f, 1f))
+                    }
+                    3 -> {
+                        // RGB processing - change order if needed (RGB vs BGR)
+                        val r = ((pixel shr 16) and 0xFF) / 255f
+                        val g = ((pixel shr 8) and 0xFF) / 255f
+                        val b = (pixel and 0xFF) / 255f
+                        buffer.putFloat(r)  // Change channel order based on model requirements
+                        buffer.putFloat(g)
+                        buffer.putFloat(b)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun processChannelFirst(bitmap: Bitmap, buffer: ByteBuffer) {
+        // Process all red channels first, then green, then blue
+        for (channel in 0 until inputChannels) {
+            for (y in 0 until inputHeight) {
+                for (x in 0 until inputWidth) {
+                    val pixel = bitmap.getPixel(x, y)
+                    val value = when (channel) {
+                        0 -> ((pixel shr 16) and 0xFF) / 255f  // Red channel
+                        1 -> ((pixel shr 8) and 0xFF) / 255f   // Green channel
+                        2 -> (pixel and 0xFF) / 255f        // Blue channel
+                        else -> 0f
+                    }
+                    buffer.putFloat(value)
+                }
+            }
+        }
+    }
+
     private fun toGrayscale(src: Bitmap): Bitmap {
         val gray = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(gray)
@@ -200,5 +281,13 @@ class FaceEmotionAnalyzer(
         paint.colorFilter = ColorMatrixColorFilter(cm)
         canvas.drawBitmap(src, 0f, 0f, paint)
         return gray
+    }
+
+    private fun toRGB(src: Bitmap): Bitmap {
+        // Ensure bitmap is in RGB format
+        val rgb = Bitmap.createBitmap(src.width, src.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(rgb)
+        canvas.drawBitmap(src, 0f, 0f, null)
+        return rgb
     }
 }
