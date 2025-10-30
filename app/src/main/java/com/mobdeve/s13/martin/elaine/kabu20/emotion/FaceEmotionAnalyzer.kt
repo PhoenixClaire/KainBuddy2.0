@@ -51,7 +51,10 @@ class FaceEmotionAnalyzer(
 
     init {
         try {
-            val modelBuffer = loadModelFileFromAssets(context, "ferplus_model_pd_best.tflite")
+//            val modelBuffer = loadModelFileFromAssets(context, "ferplus_model_pd_best.tflite")
+            val modelBuffer = loadModelFileFromAssets(context, "fer2013_mini_XCEPTION.tflite")
+//            val modelBuffer = loadModelFileFromAssets(context, "justinshenk_emotion_model_quantized.tflite")
+//            val modelBuffer = loadModelFileFromAssets(context, "Shubham-Zone_model.tflite")
             if (modelBuffer != null) {
                 tflite = Interpreter(modelBuffer)
                 analyzeModelInputRequirements() // Call this to set up the properties
