@@ -9,7 +9,7 @@ import org.json.JSONObject
 class VoiceChatManager (
     private val activity: Activity
 ){
-    private val TEST_MODE = true
+    private val TEST_MODE = true //change to false for final project
 
     private var greeted = false
     private val messages = JSONArray().apply {

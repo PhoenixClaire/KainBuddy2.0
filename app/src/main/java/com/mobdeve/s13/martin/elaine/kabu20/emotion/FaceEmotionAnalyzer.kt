@@ -43,16 +43,37 @@ class FaceEmotionAnalyzer(
     private val historySize = 5
 
     init {
+//        try {
+////            val modelBuffer = loadModelFileFromAssets(context, "ferplus_model_pd_best.tflite")
+////            val modelBuffer = loadModelFileFromAssets(context, "fer2013_mini_XCEPTION.tflite") // maybe data mismatch
+////            val modelBuffer = loadModelFileFromAssets(context, "justinshenk_emotion_model_quantized.tflite") // maybe data mismatch
+//            val modelBuffer = loadModelFileFromAssets(context, "Shubham-Zone_model.tflite") // maybe data mismatch
+//            if (modelBuffer != null) {
+//                tflite = Interpreter(modelBuffer)
+//                Log.d("FaceEmotionAnalyzer", "✅ TFLite model loaded successfully.")
+//            } else {
+//                Log.w("FaceEmotionAnalyzer", "⚠️ Model not found, using fallback mode.")
+//            }
+//        } catch (e: Exception) {
+//            Log.e("FaceEmotionAnalyzer", "❌ Model load error: ${e.message}")
+//        }
         try {
-            val modelBuffer = loadModelFileFromAssets(context, "ferplus_model_pd_best.tflite")
+            val modelBuffer = loadModelFileFromAssets(context, "fer2013_mini_XCEPTION.tflite")
             if (modelBuffer != null) {
                 tflite = Interpreter(modelBuffer)
-                Log.d("FaceEmotionAnalyzer", "✅ TFLite model loaded successfully.")
-            } else {
-                Log.w("FaceEmotionAnalyzer", "⚠️ Model not found, using fallback mode.")
+
+                // Debug: Check model input requirements
+                val inputTensor = tflite?.getInputTensor(0)
+                val inputShape = inputTensor?.shape()
+                Log.d("FER", "Model input shape: ${inputShape?.contentToString()}")
+                // If inputShape is [1, 224, 224, 3], your model expects:
+                // - Batch size: 1
+                // - Width: 224
+                // - Height: 224
+                // - Channels: 3 (RGB, not grayscale!)
             }
         } catch (e: Exception) {
-            Log.e("FaceEmotionAnalyzer", "❌ Model load error: ${e.message}")
+            Log.e("FER", "Load failed: ${e.message}")
         }
     }
 

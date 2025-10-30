@@ -142,6 +142,7 @@ class VideoCallActivity : AppCompatActivity(){
                             context = this
                         ) { emotion, confidence ->
                             runOnUiThread {
+                                Log.i("FER_UI", "UI Update - Emotion: $emotion (${(confidence * 100).toInt()}%)")
                                 binding.userEmotionText.text = "Emotion: $emotion (${(confidence * 100).toInt()}%)"
                                 // Optional: Unity animation trigger
                                 // UnityHolder.unityPlayer?.SendMessage("KaBuController", "SetEmotion", emotion)
