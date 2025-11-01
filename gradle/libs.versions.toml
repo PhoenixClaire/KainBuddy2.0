@@ -18,6 +18,7 @@ firebaseDatabase = "22.0.1"
 firebaseBom = "33.1.2"
 tensorflowLite = "2.14.0"
 faceDetection = "16.1.7"
+roomExternalAntlr = "2.8.3"
 
 
 [libraries]
@@ -44,6 +45,7 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraView" }
 firebase-database = { group = "com.google.firebase", name = "firebase-database", version.ref = "firebaseDatabase" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+androidx-room-external-antlr = { group = "androidx.room", name = "room-external-antlr", version.ref = "roomExternalAntlr" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

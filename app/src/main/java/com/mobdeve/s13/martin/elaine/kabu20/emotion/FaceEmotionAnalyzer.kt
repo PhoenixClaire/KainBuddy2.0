@@ -41,9 +41,14 @@ class FaceEmotionAnalyzer(
     )
 
     private var tflite: Interpreter? = null
-    private val emotionLabels = listOf(
-        "Angry", "Disgust", "Fear", "Happy", "Sad", "Surprise", "Neutral", "Contempt"
+//    private val emotionLabels = listOf(
+//        "Angry", "Disgust", "Fear", "Happy", "Sad", "Surprise", "Neutral", "Contempt"
+//    )
+
+    private var emotionLabels: List<String> = listOf(
+        "Angry","Disgust","Fear","Happy","Sad","Surprise","Neutral","Contempt"
     )
+    private var numClasses: Int = emotionLabels.size
 
     // Sliding window smoothing for more stable predictions
     private val emotionHistory = LinkedList<Pair<String, Float>>()
@@ -51,10 +56,10 @@ class FaceEmotionAnalyzer(
 
     init {
         try {
-//            val modelBuffer = loadModelFileFromAssets(context, "ferplus_model_pd_best.tflite")
-            val modelBuffer = loadModelFileFromAssets(context, "fer2013_mini_XCEPTION.tflite")
-//            val modelBuffer = loadModelFileFromAssets(context, "justinshenk_emotion_model_quantized.tflite")
-//            val modelBuffer = loadModelFileFromAssets(context, "Shubham-Zone_model.tflite")
+  //          val modelBuffer = loadModelFileFromAssets(context, "ferplus_model_pd_best.tflite")
+  //         val modelBuffer = loadModelFileFromAssets(context, "fer2013_mini_XCEPTION.tflite")
+           val modelBuffer = loadModelFileFromAssets(context, "justinshenk_emotion_model_quantized.tflite")
+  //        val modelBuffer = loadModelFileFromAssets(context, "Shubham-Zone_model.tflite")
             if (modelBuffer != null) {
                 tflite = Interpreter(modelBuffer)
                 analyzeModelInputRequirements() // Call this to set up the properties
@@ -65,30 +70,40 @@ class FaceEmotionAnalyzer(
     }
 
     private fun analyzeModelInputRequirements() {
-        val inputTensor = tflite?.getInputTensor(0)
-        val inputShape = inputTensor?.shape()
+        val inTensor = tflite?.getInputTensor(0)
+        val inShape = inTensor?.shape() // e.g. [1, 48, 48, 1] or [1, 3, 48, 48]
 
-        // Check if it's channel-first format [1, channels, height, width]
-        isChannelFirst = when {
-            inputShape?.size == 4 && inputShape[1] == 3 -> true // [1, 3, height, width]
-            else -> false
-        }
+        // Channel-first?
+        isChannelFirst = (inShape?.size == 4 && inShape[1] == 3)
 
         if (isChannelFirst) {
-            // Channel-first format: [batch_size, channels, height, width]
-            inputHeight = inputShape?.get(2) ?: 48      // Change height based on model
-            inputWidth = inputShape?.get(3) ?: 48          // Change width based on model
-            inputChannels = inputShape?.get(1) ?: 1         // Change channels based on model
+            inputHeight = inShape?.get(2) ?: 48
+            inputWidth  = inShape?.get(3) ?: 48
+            inputChannels = inShape?.get(1) ?: 1
         } else {
-            // Channel-last format: [batch_size, height, width, channels]
-            inputHeight = inputShape?.get(1) ?: 48      // Change height based on model
-            inputWidth = inputShape?.get(2) ?: 48       // Change width based on model
-            inputChannels = inputShape?.get(3) ?: 1     // Change channels based on model
+            inputHeight = inShape?.get(1) ?: 48
+            inputWidth  = inShape?.get(2) ?: 48
+            inputChannels = inShape?.get(3) ?: 1
         }
-
         requiresRGB = inputChannels == 3
 
-        Log.d("FER", "Model configured for: ${inputHeight}x${inputWidth}x${inputChannels}, channelFirst: $isChannelFirst")
+        // >>> Detect OUTPUT classes here
+        val outTensor = tflite?.getOutputTensor(0)
+        val outShape = outTensor?.shape()    // usually [1, N]
+        numClasses = outShape?.lastOrNull() ?: emotionLabels.size
+
+        // Choose labels to match model
+        emotionLabels = chooseLabelsFor(numClasses)
+
+        Log.d("FER", "Input: ${inputHeight}x${inputWidth}x${inputChannels}, channelFirst=$isChannelFirst")
+        Log.d("FER", "Output classes: $numClasses, labels=$emotionLabels")
+    }
+
+    private fun chooseLabelsFor(n: Int): List<String> = when (n) {
+        8 -> listOf("Angry","Disgust","Fear","Happy","Sad","Surprise","Neutral","Contempt")
+        7 -> listOf("Angry","Disgust","Fear","Happy","Sad","Surprise","Neutral")
+        6 -> listOf("Angry","Fear","Happy","Sad","Surprise","Neutral") // common 6-class variant
+        else -> (0 until n).map { "Class$it" } // fallback so we never crash
     }
 
     @SuppressLint("UnsafeOptInUsageError")
