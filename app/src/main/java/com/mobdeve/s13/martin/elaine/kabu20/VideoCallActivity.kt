@@ -42,6 +42,14 @@ class VideoCallActivity : AppCompatActivity(){
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        /** Camera and mic permissions */
+        val permissions = arrayOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        )
+        ActivityCompat.requestPermissions(this, permissions, 1001)
+
+
         binding = ActivityVideoCallBinding.inflate(layoutInflater)
         setContentView(binding.root)
 

@@ -38,7 +38,7 @@ class STTClient(
     private val onFinal: (String, File?) -> Unit,
     private val onError: (String) -> Unit,
     private val fallbackTTS: ((String, () -> Unit) -> Unit)? = null,
-    private val senseVoiceUrl: String = "http://192.168.63.85:6006/asr"   // <-- adjust to your server
+    private val senseVoiceUrl: String = "http://172.20.10.3:6006/asr"   // <-- adjust to your server
 ) {
 
     // ---- Mic / WAV config ----
