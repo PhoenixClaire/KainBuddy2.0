@@ -96,6 +96,7 @@ class VideoCallActivity : AppCompatActivity(){
             if(isCameraOn){
                 closeCamera()
                 isCameraOn = false
+//                voice.triggerTalking()
             } else {
                 startCamera()
                 isCameraOn = true

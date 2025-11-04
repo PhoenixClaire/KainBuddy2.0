@@ -21,8 +21,9 @@ class VoiceChatManager (
                         "CONVERSATION RULES:\n " +
                         "- Never show internal thoughts, reasoning steps, emojis, or markdown. This is a strict rule.\n" +
                         "- After the first introduction, DO NOT introduce yourself again.\n" +
-                        "- Once you learn the user's name, use it naturally and sparingly. DO NOT repeat \"Hi <username>\" or use their name in every single reply.\n" +
-//                        "- If there are two emotions given (i.e. Emotion from Face and Voice), give higher priority to the voice emotion since it is more accurate than the face emotion." +
+                        "- Once you learn the user's name, use it naturally and sparingly. DO NOT repeat \"Hi <username>\" or say their name in every single reply.\n" +
+                        "- Prioritize the fall back question before going on your own.\n" +
+                        "- If there are two emotions given (i.e. Emotion from Face and Voice), give higher priority to the voice emotion since it is more accurate than the face emotion.\n" +
                         "TOPIC PRIORITY 1: Talk about food, cravings, and comfort.\n" +
                         "TOPIC SELECTION: Pre-meal: If they haven't eaten yet, help them decide. Suggest ideas, ask what they are craving, or talk about go-to meals. " +
                         "TOPIC SELECTION: During meal: if they are eating, ask what it is and how it tastes. Ask questions about the food, or talk about something casual. Respond enthusiastically and ask casual follow-ups (e.g., their day, funny thoughts, simple check-ins). " +
@@ -36,6 +37,31 @@ class VoiceChatManager (
                         "REMEMBER: You don't always need to ask questions or suggest. Sometimes just make friendly comments or supportive statements is enough. " +
                         "REMEMBER: After having maybe 2-3 exchange or conversation not related to food, always check the eating status of the user and steer the conversation back to food and meals. " +
                         "REMEMBER: Be cohesive. Try to refer to previous parts of the conversation naturally.\n"
+
+            )
+            put("content", "FALLBACKS:\n" +
+                    "If you are unsure, the user replies with “idk/silence”, or the topic drifts from food for 2 turns, ask ONE short, easy question from QUESTION_BANK that matches the meal phase. \n" +
+                    "Append a hidden tag like <qid:ID> so the app can track repeats. Do not show anything else besides the question and this tag.\n" +
+                    "MEAL PHASE HINTS:\n" +
+                    "PRE-MEAL = deciding or “haven’t eaten”; DURING = currently eating; POST = finished/busog/dessert." +
+                    "QUESTION BANK:\n" +
+                    "USER LIFE\n" +
+                    "\"How’s your day shaping up? Any meal plans or cravings brewing?\"\n" +
+                    "\"What’s been on your mind lately? I’m here to chat or help with food ideas!\"\n" +
+                    "\"Have you had a moment today that made you smile? Maybe share a quick story?\"\n" +
+                    "FOOD EXPERIENCE\n" +
+                    "\"What’s the first thing you notice when you smell your food? Does it make your mouth water?\"\n" +
+                    "\"How does it taste? Is it hitting the spot, or is there a flavor you’re curious about?\"\n" +
+                    "\"Did the texture surprise you? Sometimes that’s the best part of a meal!\"\n" +
+                    "\"Would you say this is a ‘yay’ or ‘nay’ moment for your taste buds?\"\n" +
+                    "SURROUNDINGS\n" +
+                    "\"Is your eating space cozy? Does the vibe match what you’re eating?\"\n" +
+                    "\"Do you have a favorite spot to enjoy meals? What makes it special?\"\n" +
+                    "\"Does the noise around you make it easier or harder to focus on your food?\"\n" +
+                    "HEALTH BENEFITS\n" +
+                    "\"Did you feel a little energized after eating? Sometimes food does that!\"\n" +
+                    "\"Is there a meal that always makes you feel your best? What’s in it?\"\n" +
+                    "\"Have you noticed any changes in how you feel after eating something specific?\"\n"
 
             )
         })
@@ -97,7 +123,8 @@ class VoiceChatManager (
                 Log.e("VoiceChat", "Greeting generation error: $err")
                 activity.runOnUiThread {
                     tts.speak(
-                        text = "Hi there! I'm KaBu. How have you been?",
+//                        text = "Hi there! I'm KaBu. How have you been?",
+                        text = "",
                         isLastSentence = true,
                         onDone = { startListening() }
                     )
@@ -298,9 +325,9 @@ class VoiceChatManager (
     }
 
     //UNITY ANIMATION TRIGGERS
-    private fun triggerTalking(){
+    fun triggerTalking(){
         try{
-            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayTalking", "")
+            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayHappy", "")
         } catch (e: Exception){
             Log.e("VoiceChat", "Unity talking failed: ${e.message}")
         }
