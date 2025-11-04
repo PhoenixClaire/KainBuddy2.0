@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 
 class TTSClient(
     private val context: Context,
-    baseUrl: String = "http://192.168.227.85:5001/tts" //IP
+    baseUrl: String = "http://10.0.0.108:5000/tts" //IP
 ) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -25,7 +25,7 @@ class TTSClient(
     private val url = baseUrl
     private var mediaPlayer: MediaPlayer? = null
     private val queue: ArrayDeque<Pair<String, Boolean>> = ArrayDeque()
-    private var isPlaying = false
+    var isPlaying = false
     private val handler = Handler(Looper.getMainLooper())
 
     /**

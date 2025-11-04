@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 
 class SERClient (
     private val activity: Activity,
-    private val baseUrl: String = "http://192.168.227.85:5000/analyze_emotion" //IP
+    private val baseUrl: String = "http://10.0.0.110:6000/analyze_emotion" //IP
     ) {
 
         private val client = OkHttpClient.Builder()
