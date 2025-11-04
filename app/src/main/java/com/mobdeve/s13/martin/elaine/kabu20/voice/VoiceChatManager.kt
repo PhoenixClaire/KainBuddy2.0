@@ -2,6 +2,8 @@ package com.mobdeve.s13.martin.elaine.kabu20.voice
 
 import android.app.Activity
 import android.util.Log
+import androidx.collection.emptyLongSet
+import com.mobdeve.s13.martin.elaine.kabu20.UnityHolder
 import com.unity3d.player.UnityPlayer
 import org.json.JSONArray
 import org.json.JSONObject
@@ -159,6 +161,11 @@ class VoiceChatManager (
                             emotion = emo
                             confidence = conf
                             Log.d("VoiceChat", "Detected emotion: $emo ($conf)")
+
+                            //reaction
+                            triggerReaction(emo)
+
+                            //response
                             continueConversation(finalText, emotion, confidence)
 
                             // (optional) tidy cache after use
@@ -268,7 +275,7 @@ class VoiceChatManager (
     }
 
     //UNITY ANIMATION TRIGGERS
-    private fun triggerTalking(){
+     fun triggerTalking(){
         try{
             UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayTalking", "")
         } catch (e: Exception){
@@ -276,11 +283,53 @@ class VoiceChatManager (
         }
     }
 
-    private fun triggerIdle(){
+     fun triggerIdle(){
         try{
             UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayIdle", "")
         } catch (e: Exception){
             Log.e("VoiceChat", "Unity idle failed: ${e.message}")
+        }
+    }
+
+    fun triggerHappy(){
+        try{
+            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayHappy", "")
+        } catch (e: Exception){
+            Log.e("VoiceChat", "Unity happy failed: ${e.message}")
+        }
+    }
+
+    fun triggerSad(){
+        try{
+            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlaySad", "")
+        } catch (e: Exception){
+            Log.e("VoiceChat", "Unity sad failed: ${e.message}")
+        }
+    }
+
+    fun triggerSurprise(){
+        try{
+            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlaySurprise", "")
+        } catch (e: Exception){
+            Log.e("VoiceChat", "Unity surprise failed: ${e.message}")
+        }
+    }
+
+    private fun triggerReaction(emotion: String){
+        Log.d("VoiceChat", "Triggering reaction for emotion: $emotion")
+
+        when (emotion.lowercase()) {
+            "happy" -> triggerHappy()
+            "sad" -> triggerSad()
+            "surprised" -> triggerSurprise()
+
+            "angry", "fear" -> {
+                Log.w("VoiceChat", "No animation available.")
+            }
+
+            else -> {
+                Log.d("VoiceChat", "Unhandled emotion for reaction: $emotion")
+            }
         }
     }
 }

@@ -109,6 +109,7 @@ class VideoCallActivity : AppCompatActivity(){
                 else R.drawable.outline_mic_off_24
             )
         }
+
     }
 
     //turn camera on/off
