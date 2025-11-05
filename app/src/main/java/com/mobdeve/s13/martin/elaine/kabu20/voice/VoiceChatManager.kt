@@ -2,9 +2,8 @@ package com.mobdeve.s13.martin.elaine.kabu20.voice
 
 import android.app.Activity
 import android.util.Log
-import androidx.collection.emptyLongSet
 import com.mobdeve.s13.martin.elaine.kabu20.UnityHolder
-import com.unity3d.player.UnityPlayer
+import com.unity3d.player.UnityPlayer // Keep the import, but we'll use UnityHolder
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -13,58 +12,45 @@ class VoiceChatManager (
 ){
     private val TEST_MODE = false
 
+    // State flags from V2 to prevent overlapping audio
+    private var isSpeaking = false
+    private var listening = false
+
     private var greeted = false
+
+    // Using the cleaner, more natural prompt from V1
     private val messages = JSONArray().apply {
         put(JSONObject().apply {
             put("role", "system")
             put(
-                "content", "IDENTITY: You are KaBu — a warm, food-loving eating companion. Your goal is to keep the user company before, during, and after meals and help them enjoy their food.\n" +
-                        "FIRST INTERACTION: In your very first message of the conversation, greet the user, introduce yourself once as KaBu, and ask for their name. (e.g., 'Hey there! I'm KaBu. I'm here to keep you company while you eat. What's your name?').\n" +
-                        "CONVERSATION RULES:\n " +
-                        "- Never show internal thoughts, reasoning steps, emojis, or markdown. This is a strict rule.\n" +
-                        "- After the first introduction, DO NOT introduce yourself again.\n" +
-                        "- Once you learn the user's name, use it naturally and sparingly. DO NOT repeat \"Hi <username>\" or say their name in every single reply.\n" +
-                        "- Prioritize the fall back question before going on your own.\n" +
-                        "- If there are two emotions given (i.e. Emotion from Face and Voice), give higher priority to the voice emotion since it is more accurate than the face emotion.\n" +
-                        "TOPIC PRIORITY 1: Talk about food, cravings, and comfort.\n" +
-                        "TOPIC SELECTION: Pre-meal: If they haven't eaten yet, help them decide. Suggest ideas, ask what they are craving, or talk about go-to meals. " +
-                        "TOPIC SELECTION: During meal: if they are eating, ask what it is and how it tastes. Ask questions about the food, or talk about something casual. Respond enthusiastically and ask casual follow-ups (e.g., their day, funny thoughts, simple check-ins). " +
-                        "TOPIC SELECTION: Post-meal: If they have finished, ask if it was satisfying. Ask if they'll have dessert or something else. If yes, return to Pre-meal.\n" +
-                        "Loop: keep talking unless the user clearly says they're done. Responses should feel natural, warm, and human - no assistant-like phrasing.\n" +
-                        "TRAIT #1: You speak naturally and directly, like a caring friend. Avoid overly formal or assistant-like language. " +
-                        "TRAIT #2: Your maximum dialogue or reply is 1-2 sentences to feel conversational and if you're gonna ask, limit each reply to 1 question only. " +
-                        "TRAIT #3: Observe the user's emotional state and respond empathetically. If they seem down, offer comforting food suggestions or uplifting comments. If they seem excited, match their energy and enthusiasm. " +
-                        "TRAIT #4: Always check on user's eating status and steer the conversation back to food and meals.\n" +
-                        "REMEMBER: If the topic is getting inappropriate (e.g. violence, harassment, and the like), steer it back smoothly to food and meals. " +
-                        "REMEMBER: You don't always need to ask questions or suggest. Sometimes just make friendly comments or supportive statements is enough. " +
-                        "REMEMBER: After having maybe 2-3 exchange or conversation not related to food, always check the eating status of the user and steer the conversation back to food and meals. " +
-                        "REMEMBER: Be cohesive. Try to refer to previous parts of the conversation naturally.\n"
+                "content",
+                """You are KaBu, a warm, empathetic food companion. Your personality is a natural, caring, and curious friend, NOT a virtual assistant.
 
-            )
-            put("content", "FALLBACKS:\n" +
-                    "If you are unsure, the user replies with “idk/silence”, or the topic drifts from food for 2 turns, ask ONE short, easy question from QUESTION_BANK that matches the meal phase. \n" +
-                    "Append a hidden tag like <qid:ID> so the app can track repeats. Do not show anything else besides the question and this tag.\n" +
-                    "MEAL PHASE HINTS:\n" +
-                    "PRE-MEAL = deciding or “haven’t eaten”; DURING = currently eating; POST = finished/busog/dessert." +
-                    "QUESTION BANK:\n" +
-                    "USER LIFE\n" +
-                    "\"How’s your day shaping up? Any meal plans or cravings brewing?\"\n" +
-                    "\"What’s been on your mind lately? I’m here to chat or help with food ideas!\"\n" +
-                    "\"Have you had a moment today that made you smile? Maybe share a quick story?\"\n" +
-                    "FOOD EXPERIENCE\n" +
-                    "\"What’s the first thing you notice when you smell your food? Does it make your mouth water?\"\n" +
-                    "\"How does it taste? Is it hitting the spot, or is there a flavor you’re curious about?\"\n" +
-                    "\"Did the texture surprise you? Sometimes that’s the best part of a meal!\"\n" +
-                    "\"Would you say this is a ‘yay’ or ‘nay’ moment for your taste buds?\"\n" +
-                    "SURROUNDINGS\n" +
-                    "\"Is your eating space cozy? Does the vibe match what you’re eating?\"\n" +
-                    "\"Do you have a favorite spot to enjoy meals? What makes it special?\"\n" +
-                    "\"Does the noise around you make it easier or harder to focus on your food?\"\n" +
-                    "HEALTH BENEFITS\n" +
-                    "\"Did you feel a little energized after eating? Sometimes food does that!\"\n" +
-                    "\"Is there a meal that always makes you feel your best? What’s in it?\"\n" +
-                    "\"Have you noticed any changes in how you feel after eating something specific?\"\n"
-
+                TONE & PERSONALITY:
+                - Short & Casual: 1-2 sentences. Always. Like you're chatting over a meal.
+                - No assistant-speak: Never say "How can I help you?" or "Is there anything else?"
+                - Use natural expressions: "Oh, really?" "Yum!" "That hits the spot, huh?" "Tell me more!"
+                - NO EMOJIS, NO MARKDOWN
+                - SPEAK IN ENGLISH ONLY
+                
+                 CONVERSATION FLOW:
+                 1. Use Name: ONLY after the user tells you their name, you can use it sparingly. If you don't know their name, ask them what you can call them.
+                 2. Pre-meal (haven't eaten): Help them decide. Ask about cravings, their day, or suggest ideas. Make them feel safe to tell you about their day. 
+                 3. During meal (eating now): Ask how it tastes! Make casual chat about the food or their day. Make small talk. Ask about their day. 
+                 4. Post-meal (finished): Ask if they're full or if it was satisfying. Talk about dessert.
+                 5. Keep it flowing: Always end your reply with ONE simple, casual question. But ask only 1 question at a time.
+                 6. Topic: After 2-3 non-food replies, gently steer the conversation back to food or feelings.
+                
+                * CRITICAL RULES *
+                - DO NOT use the literal word "name" as a placeholder. (e.g., NEVER say "Hello, name").
+                - DO NOT ask for their name in the very first greeting.
+                - You will get hints about the user's feelings, like [User sounded happy] or [User looked sad].
+                - USE THESE HINTS to guide your empathy.
+                - If hints match (happy voice, happy face): Share their joy! "You sound so happy about that, I love it!"
+                - If hints conflict (happy voice, sad face): Be gentle and curious. "You sound happy, but you look a bit down. Everything okay?"
+                - If they seem sad or angry: Be extra comforting. "Oh no, you sound really sad. Want to talk about it? Maybe some comfort food is in order."
+                - If the emotion is "Unknown" or "neutral", just reply to their words normally.
+                """
             )
         })
     }
@@ -72,9 +58,6 @@ class VoiceChatManager (
     private var stt: STTClient? = null
     private val llm = LLMClient(onToken = {/*if we had a text UI we'd put it here*/})
     private val tts = TTSClient(activity)
-
-    private var listening = false
-
 
     // For FER
     private var facialEmotion = "Unknown"
@@ -108,44 +91,50 @@ class VoiceChatManager (
                     val isLast = sentence.endsWith(".") || sentence.endsWith("?") || sentence.endsWith("!")
                     tts.speak(
                         text = sentence,
-                        isLastSentence = isLast, // let the last spoken chunk trigger STT
-                        onStart = { Log.d("VoiceChat", "KaBu speaking: $sentence") },
+                        isLastSentence = isLast,
+                        onStart = {
+                            isSpeaking = true // V2 logic
+                            Log.d("VoiceChat", "KaBu speaking: $sentence")
+                            triggerTalking() // Animation fix
+                        },
                         onDone = {
+                            isSpeaking = false // V2 logic
                             if (isLast) {
-                                Log.d("VoiceChat", "Greeting finished. Listening now...")
-//                                startListening()
-                                activity.window.decorView.postDelayed({
-                                    if (!tts.isPlaying) {
-                                        Log.d("VoiceChat", "Now safe to listen")
-                                        startListening()
-                                    } else {
-                                        Log.d("VoiceChat", "TTS still speaking, retrying in 200ms...")
-                                        activity.window.decorView.postDelayed({
-                                            if (!tts.isPlaying) {
-                                                Log.d("VoiceChat", "Now safe to listen")
-                                                startListening()
-                                            }
-                                        }, 200)
-                                    }
-                                }, 400)
+                                // Use the safe, guarded function
+                                safeStartListening()
                             }
                         },
-                        onError = { err -> Log.e("VoiceChat", "TTS error: $err") }
+                        onError = { err ->
+                            isSpeaking = false // V2 logic
+                            Log.e("VoiceChat", "TTS error: $err")
+                            if (isLast) {
+                                // Use the safe, guarded function (FIXED)
+                                safeStartListening()
+                            }
+                        }
                     )
                 }
             },
             onDone = { reply ->
-                Log.d("VoiceChat", "Greeting generation complete: $reply")
-                // Do nothing here except logging, sentences already spoken by onSentence
+                // * BUG FIX 1 (Greets Twice) *
+                // Copied from V1's fix
+                if (reply.isNotBlank()) {
+                    messages.put(JSONObject().apply {
+                        put("role", "assistant")
+                        put("content", reply)
+                    })
+                    Log.d("VoiceChat", "Greeting generation complete: $reply")
+                } else {
+                    triggerIdle()
+                }
             },
             onError = { err ->
                 Log.e("VoiceChat", "Greeting generation error: $err")
                 activity.runOnUiThread {
                     tts.speak(
-//                        text = "Hi there! I'm KaBu. How have you been?",
                         text = "",
                         isLastSentence = true,
-                        onDone = { startListening() }
+                        onDone = { safeStartListening() } // Use safe logic
                     )
                 }
             }
@@ -170,18 +159,21 @@ class VoiceChatManager (
             tts.speak(
                 text = greeting,
                 onStart = {
+                    isSpeaking = true // V2 logic
                     Log.d("VoiceChat", "Kabu greets user...")
-                    triggerTalking()
+                    triggerTalking() // Animation fix
                 },
                 onDone = {
+                    isSpeaking = false // V2 logic
                     Log.d("VoiceChat: ", "Listening now...")
-                    triggerIdle()
-                    startListening()
+                    triggerIdle() // Animation fix
+                    safeStartListening()
                 },
                 onError = { err ->
+                    isSpeaking = false // V2 logic
                     Log.e("VoiceChat ", "TTS error: $err")
-                    triggerIdle()
-                    startListening()
+                    triggerIdle() // Animation fix
+                    safeStartListening()
                 }
             )
         }
@@ -190,19 +182,19 @@ class VoiceChatManager (
     fun startListening() {
         if (TEST_MODE) {
             Log.d("VoiceChat", "TEST MODE - Mock listening")
-            listening = true
-            // Simulate user input after delay
-            activity.window.decorView.postDelayed({
-                listening = false
-                Log.d("VoiceChat", "TEST MODE - Mock user speech detected")
-            }, 2000)
             return
         }
 
-        if (listening) return
-        listening = true
+        // V2 Guard: Don't listen if we are already listening or speaking
+        if (listening || isSpeaking) {
+            Log.w("VoiceChat", "startListening() called but listening=$listening, isSpeaking=$isSpeaking. Skipping.")
+            return
+        }
 
-        activity.runOnUiThread {   // ✅ add this guard
+        listening = true
+        Log.d("VoiceChat", ">>> STARTING TO LISTEN... <<<")
+
+        activity.runOnUiThread {
             stt = STTClient(
                 activity,
                 onPartial = { /* optional */ },
@@ -222,13 +214,8 @@ class VoiceChatManager (
                             voiceEmotion = emo
                             confidence = conf
                             Log.d("VoiceChat", "Detected emotion: $emo ($conf)")
-                            //reaction
-                            triggerReaction(emo)
-
-                            //response
+                            triggerReaction(voiceEmotion) // Animation fix
                             continueConversation(finalText, voiceEmotion, confidence)
-
-                            // (optional) tidy cache after use
                             try { audioFile.delete() } catch (_: Exception) {}
                         }
                     }
@@ -239,7 +226,6 @@ class VoiceChatManager (
                             Log.w("VoiceChat", "SER timeout → continuing without emotion")
                             continued = true
                             continueConversation(finalText, voiceEmotion, confidence)
-                            // don't delete file yet; SER may still be reading
                         }
                     }, 1500)
                 },
@@ -254,15 +240,16 @@ class VoiceChatManager (
                             isLastSentence = true,
                             onDone = {
                                 Log.d("VoiceChat", "Fallback spoken: $line")
-                                triggerIdle()
+                                triggerIdle() // Animation fix
                                 after()
                             },
-                            onStart = { triggerTalking() }
+                            onStart = {
+                                isSpeaking = true // V2 logic
+                                triggerTalking() // Animation fix
+                            }
                         )
                     }
-                },
-                // (optional) override SenseVoice endpoint here if not using the default:
-                // senseVoiceUrl = "http://<your-ip>:6006/asr"
+                }
             ).also { it.start() }
         }
     }
@@ -271,20 +258,51 @@ class VoiceChatManager (
     fun stoplistening(){
         listening = false
         stt?.stop()
+        Log.d("VoiceChat", ">>> STOPPING LISTENING (manual). <<<")
     }
 
     fun stopAllAudio(){
         tts.stop()
-        triggerIdle()
+        isSpeaking = false // V2 logic
+        triggerIdle() // Animation fix
+    }
+
+    // This is the new, safe, guarded function to transition from TTS to STT
+    private fun safeStartListening() {
+        triggerIdle() // Animation fix
+
+        // Use the same 400ms delay from V1/V2
+        activity.window.decorView.postDelayed({
+
+            // V2 Guard: Check flags before trying to listen
+            if (isSpeaking || listening) {
+                Log.d("VoiceChat", "[safeStart] Still speaking or already listening, skipping.")
+                return@postDelayed
+            }
+
+            // We double-check tts.isPlaying just in case, but isSpeaking is the real lock
+            if (!tts.isPlaying) {
+                Log.d("VoiceChat", "[safeStart] Now safe to listen.")
+                startListening()
+            } else {
+                Log.w("VoiceChat", "[safeStart] tts.isPlaying was true, retrying in 200ms.")
+                activity.window.decorView.postDelayed({
+                    if (isSpeaking || listening) {
+                        Log.d("VoiceChat", "[safeStart] Retry cancelled, already speaking/listening.")
+                        return@postDelayed
+                    }
+                    Log.d("VoiceChat", "[safeStart] Retrying to listen.")
+                    startListening()
+                }, 200) // 200ms retry
+            }
+        }, 400) // 400ms initial delay
     }
 
     private fun continueConversation(finalText: String, voiceEmotion: String, confidence: Double) {
-        // Insert ferTrigger function to get facialEmotion
         val (facialEmotion, facialConfidence) = getFacialEmotion()
 
         Log.d("VoiceChat", "[User sounded $voiceEmotion] [User looked $facialEmotion]")
 
-        // Save user message with both facial and voice emotion
         messages.put(JSONObject().apply {
             put("role", "user")
             put("content", "$finalText [User sounded $voiceEmotion] [User looked $facialEmotion]")
@@ -299,34 +317,23 @@ class VoiceChatManager (
                         text = sentence,
                         isLastSentence = isLast,
                         onStart = {
+                            isSpeaking = true // V2 logic
                             Log.d("VoiceChat", "KaBu starts speaking: $sentence")
-                            triggerTalking()
+                            triggerTalking() // Animation fix
                         },
                         onDone = {
+                            isSpeaking = false // V2 logic
                             if (isLast) {
-                                Log.d("VoiceChat", "Reply done → Listening again...")
-                                triggerIdle()
-//                                startListening()
-                                activity.window.decorView.postDelayed({
-                                    if (!tts.isPlaying) {
-                                        startListening()
-                                    } else {
-                                        Log.d("VoiceChat", "TTS still speaking, retrying in 200ms...")
-                                        activity.window.decorView.postDelayed({
-                                            if (!tts.isPlaying) {
-                                                Log.d("VoiceChat", "Now safe to listen")
-                                                startListening()
-                                            }
-                                        }, 200)
-                                    }
-                                }, 400)
+                                // Use the safe, guarded function
+                                safeStartListening()
                             }
                         },
                         onError = { err ->
+                            isSpeaking = false // V2 logic
                             Log.e("VoiceChat", "TTS error: $err")
                             if (isLast) {
-                                triggerIdle()
-                                startListening()
+                                // Use the safe, guarded function (FIXED)
+                                safeStartListening()
                             }
                         }
                     )
@@ -340,18 +347,19 @@ class VoiceChatManager (
                     })
                     Log.d("VoiceChat", "KaBu full reply: $reply")
                 } else {
-                    triggerIdle()
+                    triggerIdle() // Animation fix
                 }
             },
             onError = { err ->
                 Log.e("VoiceChat", "LLM error: $err")
-                activity.runOnUiThread { triggerIdle() }
+                activity.runOnUiThread { triggerIdle() } // Animation fix
             }
         )
     }
 
-    //UNITY ANIMATION TRIGGERS
-     fun triggerTalking(){
+    // * UNITY ANIMATION TRIGGERS (FIXED) *
+    // All triggers now use the UnityHolder.unityPlayer instance
+    fun triggerTalking(){
         try{
             UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayTalking", "")
         } catch (e: Exception){
@@ -359,7 +367,7 @@ class VoiceChatManager (
         }
     }
 
-     fun triggerIdle(){
+    fun triggerIdle(){
         try{
             UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayIdle", "")
         } catch (e: Exception){
@@ -398,11 +406,9 @@ class VoiceChatManager (
             "happy" -> triggerHappy()
             "sad" -> triggerSad()
             "surprised" -> triggerSurprise()
-
-            "angry", "fear" -> {
+            "angry", "fear", "Unk", "Unknown" -> {
                 Log.w("VoiceChat", "No animation available.")
             }
-
             else -> {
                 Log.d("VoiceChat", "Unhandled emotion for reaction: $emotion")
             }

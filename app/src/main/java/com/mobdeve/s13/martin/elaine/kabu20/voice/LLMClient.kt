@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 //Our LLM client
 class LLMClient (
-    baseUrl: String = "http://10.0.0.108:11434", //IP
+    baseUrl: String = "http://192.168.100.10:11434", //IP
     private val onToken: (String) -> Unit // streaming callback - like QWEN typing out the response
 ){
     //adjust the time out as necessary but this should be enough...I think
@@ -39,6 +39,9 @@ class LLMClient (
             put("repeat_penalty", 1.2)
             put("num_predict", 120)
             put("stream", true)
+            put("options", JSONObject().apply {
+                put("stop", JSONArray(listOf("<think>", "</think>", "```thinking", "```reasoning")))
+            })
         }
 
         //send the prompt for response
@@ -113,6 +116,9 @@ class LLMClient (
             put("messages", messages)
             put("temperature", 0.0)
             put("num_predict", 5)
+            put("options", JSONObject().apply {
+                put("stop", JSONArray(listOf("<think>", "</think>", "```thinking", "```reasoning")))
+            })
         }
 
         val req = Request.Builder()
