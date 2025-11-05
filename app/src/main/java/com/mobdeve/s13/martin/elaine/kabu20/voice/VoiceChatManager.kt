@@ -222,7 +222,6 @@ class VoiceChatManager (
                             voiceEmotion = emo
                             confidence = conf
                             Log.d("VoiceChat", "Detected emotion: $emo ($conf)")
-                            Log.d("FacialEmotion", "Detected emotion: ")
                             //reaction
                             triggerReaction(emo)
 
@@ -282,6 +281,8 @@ class VoiceChatManager (
     private fun continueConversation(finalText: String, voiceEmotion: String, confidence: Double) {
         // Insert ferTrigger function to get facialEmotion
         val (facialEmotion, facialConfidence) = getFacialEmotion()
+
+        Log.d("VoiceChat", "[User sounded $voiceEmotion] [User looked $facialEmotion]")
 
         // Save user message with both facial and voice emotion
         messages.put(JSONObject().apply {
