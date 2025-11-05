@@ -152,6 +152,8 @@ class VideoCallActivity : AppCompatActivity(){
                             runOnUiThread {
                                 Log.i("FER_UI", "UI Update - Emotion: $emotion (${(confidence * 100).toInt()}%)")
                                 binding.userEmotionText.text = "Emotion: $emotion (${(confidence * 100).toInt()}%)"
+                                // Passes facial emotion to VoiceChatManager
+                                voice.setFacialEmotion(emotion, confidence.toDouble())
                                 // Optional: Unity animation trigger
                                 // UnityHolder.unityPlayer?.SendMessage("KaBuController", "SetEmotion", emotion)
                             }

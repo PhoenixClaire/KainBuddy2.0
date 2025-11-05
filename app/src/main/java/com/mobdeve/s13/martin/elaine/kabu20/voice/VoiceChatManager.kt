@@ -75,6 +75,23 @@ class VoiceChatManager (
 
     private var listening = false
 
+
+    // For FER
+    private var facialEmotion = "Unknown"
+    private var facialConfidence = 0.0
+
+    // Simple state setter
+    fun setFacialEmotion(ferEmotion: String, confidence: Double) {
+        this.facialEmotion = ferEmotion
+        this.facialConfidence = confidence
+        Log.d("VoiceChat",
+            "Facial emotion updated: $ferEmotion (${(confidence * 100).toInt()}%)")
+    }
+
+    private fun getFacialEmotion(): Pair<String, Double> {
+        return Pair(facialEmotion, facialConfidence)
+    }
+
     fun generateGreeting() {
         if (TEST_MODE) {
             Log.d("VoiceChat", "TEST MODE - Getting skipped")
@@ -195,22 +212,22 @@ class VoiceChatManager (
 
                     Log.d("VoiceChat", "User said: $finalText")
 
-                    var emotion = "Unknown"
+                    var voiceEmotion = "Unknown"
                     var confidence = 0.0
                     var continued = false
 
                     SERClient(activity).analyze(audioFile) { emo, conf ->
                         if (!continued) {
                             continued = true
-                            emotion = emo
+                            voiceEmotion = emo
                             confidence = conf
                             Log.d("VoiceChat", "Detected emotion: $emo ($conf)")
-
+                            Log.d("FacialEmotion", "Detected emotion: ")
                             //reaction
                             triggerReaction(emo)
 
                             //response
-                            continueConversation(finalText, emotion, confidence)
+                            continueConversation(finalText, voiceEmotion, confidence)
 
                             // (optional) tidy cache after use
                             try { audioFile.delete() } catch (_: Exception) {}
@@ -222,7 +239,7 @@ class VoiceChatManager (
                         if (!continued) {
                             Log.w("VoiceChat", "SER timeout → continuing without emotion")
                             continued = true
-                            continueConversation(finalText, emotion, confidence)
+                            continueConversation(finalText, voiceEmotion, confidence)
                             // don't delete file yet; SER may still be reading
                         }
                     }, 1500)
@@ -252,8 +269,6 @@ class VoiceChatManager (
     }
 
 
-
-
     fun stoplistening(){
         listening = false
         stt?.stop()
@@ -264,11 +279,14 @@ class VoiceChatManager (
         triggerIdle()
     }
 
-    private fun continueConversation(finalText: String, emotion: String, confidence: Double) {
-        // Save user message with emotion
+    private fun continueConversation(finalText: String, voiceEmotion: String, confidence: Double) {
+        // Insert ferTrigger function to get facialEmotion
+        val (facialEmotion, facialConfidence) = getFacialEmotion()
+
+        // Save user message with both facial and voice emotion
         messages.put(JSONObject().apply {
             put("role", "user")
-            put("content", "$finalText [User sounded $emotion]")
+            put("content", "$finalText [User sounded $voiceEmotion] [User looked $facialEmotion]")
         })
 
         llm.chatStream(
