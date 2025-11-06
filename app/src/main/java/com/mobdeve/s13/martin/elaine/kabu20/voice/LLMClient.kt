@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 //Our LLM client
 class LLMClient (
-    baseUrl: String = "http://10.0.0.108:11434", //IP
+    baseUrl: String = "http://10.0.0.108:11435", //IP
     private val onToken: (String) -> Unit // streaming callback - like QWEN typing out the response
 ){
     //adjust the time out as necessary but this should be enough...I think

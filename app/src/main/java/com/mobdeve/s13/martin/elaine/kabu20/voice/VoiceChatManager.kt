@@ -9,7 +9,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class VoiceChatManager (
-    private val activity: Activity
+    private val activity: Activity,
+    private val shouldListen: () -> Boolean,
+    private val shouldSpeak: () -> Boolean
 ){
     private val TEST_MODE = false
 
@@ -24,7 +26,7 @@ class VoiceChatManager (
                         "- Never show internal thoughts, reasoning steps, emojis, or markdown. This is a strict rule.\n" +
                         "- After the first introduction, DO NOT introduce yourself again.\n" +
                         "- Once you learn the user's name, use it naturally and sparingly. DO NOT repeat \"Hi <username>\" or say their name in every single reply.\n" +
-                        "- Prioritize the fall back question before going on your own.\n" +
+                        "- After the introduction, prioritize the fall back question before going on your own.\n" +
                         "- If there are two emotions given (i.e. Emotion from Face and Voice), give higher priority to the voice emotion since it is more accurate than the face emotion.\n" +
                         "TOPIC PRIORITY 1: Talk about food, cravings, and comfort.\n" +
                         "TOPIC SELECTION: Pre-meal: If they haven't eaten yet, help them decide. Suggest ideas, ask what they are craving, or talk about go-to meals. " +
@@ -74,6 +76,28 @@ class VoiceChatManager (
     private val tts = TTSClient(activity)
 
     private var listening = false
+
+    private fun speakIfAllowed(
+        text: String,
+        isLastSentence: Boolean = true,
+        onStart: (() -> Unit)? = null,
+        onDone: (() -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
+    ) {
+        if (!shouldSpeak()) {
+            Log.d("VoiceChat", "speakIfAllowed() suppressed; shouldSpeak=false")
+            return
+        }
+        activity.runOnUiThread {
+            tts.speak(
+                text = text,
+                isLastSentence = isLastSentence,
+                onStart = { onStart?.invoke() },
+                onDone = { onDone?.invoke() },
+                onError = { err -> onError?.invoke(err) }
+            )
+        }
+    }
 
     fun generateGreeting() {
         if (TEST_MODE) {
@@ -181,6 +205,10 @@ class VoiceChatManager (
             }, 2000)
             return
         }
+        if (!shouldListen()) {
+            Log.d("VoiceChat", "startListening() blocked: shouldListen=false")
+            return
+        }
 
         if (listening) return
         listening = true
@@ -232,19 +260,23 @@ class VoiceChatManager (
                     Log.e("VoiceChat", "STT error: $err")
                 },
                 fallbackTTS = { line, after ->
-                    activity.runOnUiThread {
-                        tts.speak(
+                    if (shouldSpeak() && shouldListen()) {
+                        speakIfAllowed(
                             text = line,
                             isLastSentence = true,
+                            onStart = { triggerTalking() },
                             onDone = {
-                                Log.d("VoiceChat", "Fallback spoken: $line")
+                                Log.d("VoiceChat", "Fallback spoken")
                                 triggerIdle()
-                                after()
-                            },
-                            onStart = { triggerTalking() }
+                                if (shouldListen()) after()
+                            }
                         )
+                    } else {
+                        Log.d("VoiceChat", "Suppressing fallback TTS (shouldSpeak/shouldListen=false)")
                     }
                 },
+                shouldListen = shouldListen,
+                shouldSpeak = shouldSpeak,
                 // (optional) override SenseVoice endpoint here if not using the default:
                 // senseVoiceUrl = "http://<your-ip>:6006/asr"
             ).also { it.start() }
@@ -276,7 +308,7 @@ class VoiceChatManager (
             onSentence = { sentence ->
                 activity.runOnUiThread {
                     val isLast = sentence.endsWith(".") || sentence.endsWith("?") || sentence.endsWith("!")
-                    tts.speak(
+                    speakIfAllowed(
                         text = sentence,
                         isLastSentence = isLast,
                         onStart = {
@@ -289,17 +321,10 @@ class VoiceChatManager (
                                 triggerIdle()
 //                                startListening()
                                 activity.window.decorView.postDelayed({
-                                    if (!tts.isPlaying) {
-                                        startListening()
-                                    } else {
-                                        Log.d("VoiceChat", "TTS still speaking, retrying in 200ms...")
-                                        activity.window.decorView.postDelayed({
-                                            if (!tts.isPlaying) {
-                                                Log.d("VoiceChat", "Now safe to listen")
-                                                startListening()
-                                            }
-                                        }, 200)
-                                    }
+                                    if (!tts.isPlaying && shouldListen()) startListening()
+                                    else activity.window.decorView.postDelayed({
+                                        if (!tts.isPlaying && shouldListen()) startListening()
+                                    }, 200)
                                 }, 400)
                             }
                         },
@@ -307,7 +332,7 @@ class VoiceChatManager (
                             Log.e("VoiceChat", "TTS error: $err")
                             if (isLast) {
                                 triggerIdle()
-                                startListening()
+                                if (shouldListen()) startListening()
                             }
                         }
                     )

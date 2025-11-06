@@ -77,7 +77,11 @@ class VideoCallActivity : AppCompatActivity(){
         startCamera()
 
         //VoiceChatManager
-        voice = VoiceChatManager(this)
+        voice = VoiceChatManager(
+            activity = this,
+            shouldListen = { isMicOn },
+            shouldSpeak  = { isMicOn }
+        )
 
         if(!greeted){
             greeted = true
@@ -105,16 +109,20 @@ class VideoCallActivity : AppCompatActivity(){
 
         binding.MicBtn.setOnClickListener{
             if(!isMicOn){
+                isMicOn = true
+                binding.MicBtn.setBackgroundResource(R.drawable.outline_mic_30)
                 voice.startListening()
             } else {
+                isMicOn = false
+                binding.MicBtn.setBackgroundResource(R.drawable.outline_mic_off_24)
                 voice.stoplistening()
                 voice.stopAllAudio()
             }
-            isMicOn = !isMicOn
-            binding.MicBtn.setBackgroundResource(
-                if(isMicOn) R.drawable.outline_mic_30
-                else R.drawable.outline_mic_off_24
-            )
+//            isMicOn = !isMicOn
+//            binding.MicBtn.setBackgroundResource(
+//                if(isMicOn) R.drawable.outline_mic_30
+//                else R.drawable.outline_mic_off_24
+//            )
         }
 
     }

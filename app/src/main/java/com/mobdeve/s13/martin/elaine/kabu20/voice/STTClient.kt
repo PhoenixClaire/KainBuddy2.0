@@ -38,7 +38,10 @@ class STTClient(
     private val onFinal: (String, File?) -> Unit,
     private val onError: (String) -> Unit,
     private val fallbackTTS: ((String, () -> Unit) -> Unit)? = null,
-    private val senseVoiceUrl: String = "http://10.0.0.105:8008/asr"   // <-- adjust to your server
+    private val senseVoiceUrl: String = "http://10.0.0.106:8008/asr",   // <-- adjust to your server
+
+    private val shouldListen: () -> Boolean = { true },  // e.g., mic toggle, call state, etc.
+    private val shouldSpeak: () -> Boolean = { true },
 ) {
 
     // ---- Mic / WAV config ----
@@ -72,6 +75,10 @@ class STTClient(
     private val mainHandler = Handler(Looper.getMainLooper())
 
     fun start(lang: String = "en-US") {
+        if (!shouldListen()) {
+            Log.d("STT(SV)", "start() ignored: shouldListen=false")
+            return
+        }
         if (listening) return
 
         // Permission guard
@@ -79,7 +86,7 @@ class STTClient(
             != PackageManager.PERMISSION_GRANTED
         ) {
             ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.RECORD_AUDIO), 1001)
-            onError("Microphone permission denied. Please enable it in settings.")
+            Log.w("STT(SV)", "No RECORD_AUDIO permission yet.")
             return
         }
 
@@ -221,8 +228,16 @@ class STTClient(
                 Log.e("STT(SV)", "SenseVoice request failed: ${e.message}")
                 mainHandler.post {
                     onError("STT network error: ${e.message}")
-                    fallbackTTS?.invoke("Sorry, I didn’t catch that. Can you repeat that for me?") {
-                        start(lang)
+//                    fallbackTTS?.invoke("Sorry, I didn’t catch that. Can you repeat that for me?") {
+//                        start(lang)
+//                    }
+                    if (shouldSpeak() && shouldListen()) {
+                        fallbackTTS?.invoke("Sorry, I didn’t catch that. Can you repeat that for me?") {
+                            // Only restart listening if still allowed:
+                            if (shouldListen()) start(lang)
+                        }
+                    } else {
+                        Log.d("STT(SV)", "Suppressing fallback TTS (shouldSpeak/shouldListen=false)")
                     }
                 }
                 cleanup()
@@ -239,8 +254,15 @@ class STTClient(
                     Log.e("STT(SV)", "Bad response: code=${response.code}, body=$txt")
                     mainHandler.post {
                         onError("STT server error (${response.code})")
-                        fallbackTTS?.invoke("Sorry, I didn’t catch that. Can you repeat that for me?") {
-                            start(lang)
+//                        fallbackTTS?.invoke("Sorry, I didn’t catch that. Can you repeat that for me?") {
+//                            start(lang)
+//                        }
+                        if (shouldSpeak() && shouldListen()) {
+                            fallbackTTS?.invoke("Sorry, I didn’t catch that. Can you repeat that for me?") {
+                                if (shouldListen()) start(lang)
+                            }
+                        } else {
+                            Log.d("STT(SV)", "Suppressing fallback TTS (shouldSpeak/shouldListen=false)")
                         }
                     }
                     cleanup()
