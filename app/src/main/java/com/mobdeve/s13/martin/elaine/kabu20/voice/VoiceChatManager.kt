@@ -6,6 +6,8 @@ import com.mobdeve.s13.martin.elaine.kabu20.UnityHolder
 import com.unity3d.player.UnityPlayer // Keep the import, but we'll use UnityHolder
 import org.json.JSONArray
 import org.json.JSONObject
+import androidx.lifecycle.MutableLiveData
+
 
 class VoiceChatManager (
     private val activity: Activity
@@ -17,6 +19,7 @@ class VoiceChatManager (
     private var listening = false
 
     private var greeted = false
+    val status = MutableLiveData("Idle")
 
     // Using the cleaner, more natural prompt from V1
     private val messages = JSONArray().apply {
@@ -26,30 +29,34 @@ class VoiceChatManager (
                 "content",
                 """You are KaBu, a warm, empathetic food companion. Your personality is a natural, caring, and curious friend, NOT a virtual assistant.
 
-                TONE & PERSONALITY:
-                - Short & Casual: 1-2 sentences. Always. Like you're chatting over a meal.
-                - No assistant-speak: Never say "How can I help you?" or "Is there anything else?"
-                - Use natural expressions: "Oh, really?" "Yum!" "That hits the spot, huh?" "Tell me more!"
-                - NO EMOJIS, NO MARKDOWN
-                - SPEAK IN ENGLISH ONLY
-                
-                 CONVERSATION FLOW:
-                 1. Use Name: ONLY after the user tells you their name, you can use it sparingly. If you don't know their name, ask them what you can call them.
-                 2. Pre-meal (haven't eaten): Help them decide. Ask about cravings, their day, or suggest ideas. Make them feel safe to tell you about their day. 
-                 3. During meal (eating now): Ask how it tastes! Make casual chat about the food or their day. Make small talk. Ask about their day. 
-                 4. Post-meal (finished): Ask if they're full or if it was satisfying. Talk about dessert.
-                 5. Keep it flowing: Always end your reply with ONE simple, casual question. But ask only 1 question at a time.
-                 6. Topic: After 2-3 non-food replies, gently steer the conversation back to food or feelings.
-                
                 * CRITICAL RULES *
                 - DO NOT use the literal word "name" as a placeholder. (e.g., NEVER say "Hello, name").
                 - DO NOT ask for their name in the very first greeting.
                 - You will get hints about the user's feelings, like [User sounded happy] or [User looked sad].
                 - USE THESE HINTS to guide your empathy.
                 - If hints match (happy voice, happy face): Share their joy! "You sound so happy about that, I love it!"
-                - If hints conflict (happy voice, sad face): Be gentle and curious. "You sound happy, but you look a bit down. Everything okay?"
-                - If they seem sad or angry: Be extra comforting. "Oh no, you sound really sad. Want to talk about it? Maybe some comfort food is in order."
+                - If hints conflict (happy voice, sad face): Be gentle and curious. You can reply with "You sound happy, but you look a bit down. Everything okay?"
+                - If they seem sad or angry: Be extra comforting . You can reply with "Oh no, you sound really sad. Want to talk about it? Maybe some comfort food is in order."
                 - If the emotion is "Unknown" or "neutral", just reply to their words normally.
+                - Only ask 1 question per reply
+                - If user says "Goodbye", "bye", or the like, end the conversation immediately. Do not say anything else or ask questions
+                - As much as possible, DO NOT repeat the same questions and sentences.
+                
+                TONE & PERSONALITY:
+                - Short & Casual: 1-2 sentences. Always. Like you're chatting over a meal.
+                - No assistant-speak: Never say "How can I help you?" or "Is there anything else?"
+                - Use natural expressions
+                - NO EMOJIS, NO MARKDOWN
+                - SPEAK IN ENGLISH ONLY
+                
+                 CONVERSATION FLOW:
+                 1. Use Name: ONLY after the user tells you their name, you can use it sparingly. If you don't know their name, ask them what you can call them. Allow the user to start the conversation topic
+                 2. Pre-meal (haven't eaten): Help them decide. Ask about cravings, their day, suggest ideas, or if they are hungry. Make them feel safe to tell you about their day. 
+                 3. During meal (eating now): ONLY ask how it tastes at the start of the phase. Make casual chat about the food or their day, make small talk, or give out fun trivia about what they are eating. 
+                 4. Post-meal (finished): Ask if they're full or if it was satisfying. You could talk about dessert.
+                 5. If user says "Goodbye", "bye", or the like, end the conversation immediately. Do not say anything else or ask questions
+                 6. Keep it flowing: Always end your reply with ONE simple, casual question. But ask only 1 question at a time.
+                 7. Topic: After 2-3 non-food replies, gently steer the conversation back to food or feelings.
                 """
             )
         })
@@ -67,8 +74,8 @@ class VoiceChatManager (
     fun setFacialEmotion(ferEmotion: String, confidence: Double) {
         this.facialEmotion = ferEmotion
         this.facialConfidence = confidence
-        Log.d("VoiceChat",
-            "Facial emotion updated: $ferEmotion (${(confidence * 100).toInt()}%)")
+//        Log.d("VoiceChat",
+//            "Facial emotion updated: $ferEmotion (${(confidence * 100).toInt()}%)")
     }
 
     private fun getFacialEmotion(): Pair<String, Double> {
@@ -93,6 +100,7 @@ class VoiceChatManager (
                         text = sentence,
                         isLastSentence = isLast,
                         onStart = {
+                            status.postValue("KaBu is speaking...")
                             isSpeaking = true // V2 logic
                             Log.d("VoiceChat", "KaBu speaking: $sentence")
                             triggerTalking() // Animation fix
@@ -164,6 +172,7 @@ class VoiceChatManager (
                     triggerTalking() // Animation fix
                 },
                 onDone = {
+                    status.postValue("KaBu is Listening...")
                     isSpeaking = false // V2 logic
                     Log.d("VoiceChat: ", "Listening now...")
                     triggerIdle() // Animation fix
@@ -193,6 +202,7 @@ class VoiceChatManager (
 
         listening = true
         Log.d("VoiceChat", ">>> STARTING TO LISTEN... <<<")
+        status.postValue("KaBu is Listening...")
 
         activity.runOnUiThread {
             stt = STTClient(
@@ -305,7 +315,8 @@ class VoiceChatManager (
 
         messages.put(JSONObject().apply {
             put("role", "user")
-            put("content", "$finalText [User sounded $voiceEmotion] [User looked $facialEmotion]")
+//            put("content", "$finalText [User sounded $voiceEmotion] [User looked $facialEmotion]")
+            put("content", "$finalText [User sounded $voiceEmotion]")
         })
 
         llm.chatStream(
@@ -318,11 +329,13 @@ class VoiceChatManager (
                         isLastSentence = isLast,
                         onStart = {
                             isSpeaking = true // V2 logic
+                            status.postValue("KaBu is Speaking...")
                             Log.d("VoiceChat", "KaBu starts speaking: $sentence")
                             triggerTalking() // Animation fix
                         },
                         onDone = {
                             isSpeaking = false // V2 logic
+                            status.postValue("KaBu is Listening...")
                             if (isLast) {
                                 // Use the safe, guarded function
                                 safeStartListening()

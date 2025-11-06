@@ -79,6 +79,13 @@ class VideoCallActivity : AppCompatActivity(){
         //VoiceChatManager
         voice = VoiceChatManager(this)
 
+        voice.status.observe(this) { currentStatus ->
+            runOnUiThread {
+                binding.kabuStatus.text = currentStatus
+                Log.d("VideoCall", "KaBu status updated: $currentStatus")
+            }
+        }
+
         if(!greeted){
             greeted = true
             binding.root.post {
