@@ -313,10 +313,15 @@ class VoiceChatManager (
 
         Log.d("VoiceChat", "[User sounded $voiceEmotion] [User looked $facialEmotion]")
 
+        val userContent = StringBuilder(finalText)
+
+        if(voiceEmotion != "Unknown" && voiceEmotion != "neutral"){
+            userContent.append(" [User sounded $voiceEmotion]")
+        }
+
         messages.put(JSONObject().apply {
             put("role", "user")
-//            put("content", "$finalText [User sounded $voiceEmotion] [User looked $facialEmotion]")
-            put("content", "$finalText [User sounded $voiceEmotion]")
+            put("content", userContent.toString())
         })
 
         llm.chatStream(
