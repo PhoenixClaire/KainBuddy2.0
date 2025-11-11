@@ -38,7 +38,7 @@ class STTClient(
     private val onFinal: (String, File?) -> Unit,
     private val onError: (String) -> Unit,
     private val fallbackTTS: ((String, () -> Unit) -> Unit)? = null,
-    private val senseVoiceUrl: String = "http://10.0.0.123:8080/asr"   // <-- adjust to your server
+    private val senseVoiceUrl: String = "http://192.168.68.117:8080/asr"   // <-- adjust to your server
 ) {
 
     // ---- Mic / WAV config ----
@@ -57,7 +57,7 @@ class STTClient(
     private var audioFile: File? = null
 
     // VAD params (tune to your room/mic)
-    private val silenceThreshold = 550        // average absolute PCM sample (raise for noisy rooms) // manually adjust per user testing
+    private val silenceThreshold = 550        // average absolute PCM sample (raise for noisy rooms) // manually adjust per user testing // 550
     private val minSpeechMs = 600L            // require at least this much voiced speech
     private val tailSilenceMs = 3200L         // stop after this long silence following speech //originally 1200L. this is in MS.
     private val ignoreStartupNoiseMs = 300L   // grace at start before VAD kicks

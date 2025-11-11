@@ -1,6 +1,8 @@
 package com.mobdeve.s13.martin.elaine.kabu20.voice
 
 import android.app.Activity
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.mobdeve.s13.martin.elaine.kabu20.UnityHolder
 import com.unity3d.player.UnityPlayer // Keep the import, but we'll use UnityHolder
@@ -116,6 +118,31 @@ class VoiceChatManager (
                             if (isLast) {
                                 // Use the safe, guarded function
                                 safeStartListening()
+
+                                //trigger sad animation
+//                                activity.runOnUiThread {
+//                                    activity.window.decorView.postDelayed({
+//                                        Log.d("VoiceChat", "Manual sad animation trigger (test)")
+//                                        triggerReaction("sad")
+//                                    }, 2000) // delay in ms
+//                                }
+
+                                //trigger surprised animation
+//                                activity.runOnUiThread {
+//                                    activity.window.decorView.postDelayed({
+//                                        Log.d("VoiceChat", "Manual surprised animation trigger (test)")
+//                                        triggerReaction("surprised")
+//                                    }, 1000) // delay in ms
+//                                }
+
+                                //trigger happy animation
+//                                activity.runOnUiThread {
+//                                    activity.window.decorView.postDelayed({
+//                                        Log.d("VoiceChat", "Manual happy animation trigger (test)")
+//                                        triggerReaction("happy")
+//                                    }, 2000) // delay in ms
+//                                }
+
                             }
                         },
                         onError = { err ->
@@ -182,6 +209,7 @@ class VoiceChatManager (
                     isSpeaking = false // V2 logic
                     Log.d("VoiceChat: ", "Listening now...")
                     triggerIdle() // Animation fix
+
                     safeStartListening()
                 },
                 onError = { err ->
@@ -214,37 +242,90 @@ class VoiceChatManager (
             stt = STTClient(
                 activity,
                 onPartial = { /* optional */ },
+//                onFinal = { finalText, audioFile ->
+//                    listening = false
+//                    if (finalText.isBlank() || audioFile == null) return@STTClient
+//
+//                    Log.d("VoiceChat", "User said: $finalText")
+//
+//                    var voiceEmotion = "Unknown"
+//                    var confidence = 0.0
+//                    var continued = false
+//                    val testEmotion = "happy"
+//
+//                    SERClient(activity).analyze(audioFile) { emo, conf ->
+//                        if (!continued) {
+//                            continued = true
+//                            voiceEmotion = emo
+//                            confidence = conf
+//                            Log.d("VoiceChat", "Detected emotion: $emo ($conf)")
+////                            triggerReaction(voiceEmotion) // Animation fix
+//                            Log.d("VoiceChat", ">>> Forcing happy animation test <<<")
+//                            triggerReaction(testEmotion)
+//                            continueConversation(finalText, voiceEmotion, confidence)
+//                            try { audioFile.delete() } catch (_: Exception) {}
+//                        }
+//                    }
+//
+//                    // fallback if SER is slow (>1.5s)
+//                    activity.window.decorView.postDelayed({
+//                        if (!continued) {
+//                            Log.w("VoiceChat", "SER timeout → continuing without emotion")
+//                            continued = true
+//                            continueConversation(finalText, voiceEmotion, confidence)
+//                        }
+//                    }, 1500)
+//                },
+
                 onFinal = { finalText, audioFile ->
                     listening = false
                     if (finalText.isBlank() || audioFile == null) return@STTClient
 
                     Log.d("VoiceChat", "User said: $finalText")
 
+                    // Default values
                     var voiceEmotion = "Unknown"
                     var confidence = 0.0
                     var continued = false
 
+                    // Call SER
                     SERClient(activity).analyze(audioFile) { emo, conf ->
                         if (!continued) {
                             continued = true
-                            voiceEmotion = emo
+
+                            // Get only the part after "/" if it exists
+                            val cleanEmotion = emo.substringAfter("/", emo).trim()
+
+                            voiceEmotion = cleanEmotion
                             confidence = conf
-                            Log.d("VoiceChat", "Detected emotion: $emo ($conf)")
-                            triggerReaction(voiceEmotion) // Animation fix
-                            continueConversation(finalText, voiceEmotion, confidence)
+
+                            Log.d("VoiceChat", "Detected emotion (cleaned): $cleanEmotion ($conf)")
+
+                            // Trigger animation first
+                            triggerReaction(cleanEmotion)
+
+                            // Small delay so animation shows before TTS
+                            activity.window.decorView.postDelayed({
+                                continueConversation(finalText, cleanEmotion, conf)
+                            }, 1000)
+
+
+//                            continueConversation(finalText, cleanEmotion, conf)
+
                             try { audioFile.delete() } catch (_: Exception) {}
                         }
                     }
 
-                    // fallback if SER is slow (>1.5s)
+                    // Optional: timeout if SER is slow
                     activity.window.decorView.postDelayed({
                         if (!continued) {
                             Log.w("VoiceChat", "SER timeout → continuing without emotion")
                             continued = true
-                            continueConversation(finalText, voiceEmotion, confidence)
+                            continueConversation(finalText, "Unknown", 0.0)
                         }
-                    }, 1500)
+                    }, 5000) // 5s timeout instead of 1.5s
                 },
+
                 onError = { err ->
                     listening = false
                     Log.e("VoiceChat", "STT error: $err")
@@ -323,6 +404,17 @@ class VoiceChatManager (
 
         if(voiceEmotion != "Unknown" && voiceEmotion != "neutral"){
             userContent.append(" [User sounded $voiceEmotion]")
+            Log.d("VoiceChat", "Triggering reaction ($voiceEmotion) before TTS...")
+
+            // Trigger Unity animation first
+            triggerReaction(voiceEmotion)
+
+            // Use Handler to delay TTS start slightly for smoother animation
+            Handler(Looper.getMainLooper()).postDelayed({
+                Log.d("VoiceChat", "Reaction delay finished, continuing to TTS...")
+                // Continue to whatever should happen next (like triggering TTS or greeting)
+                triggerTalking()
+            }, 2000) // 0.8 second delay before talking starts
         }
 
         messages.put(JSONObject().apply {
@@ -335,6 +427,10 @@ class VoiceChatManager (
             onSentence = { sentence ->
                 activity.runOnUiThread {
                     val isLast = sentence.endsWith(".") || sentence.endsWith("?") || sentence.endsWith("!")
+
+//                    triggerReaction(voiceEmotion)
+//                    Log.d("VoiceChat", "Triggered initial reaction before greeting TTS.")
+
                     tts.speak(
                         text = sentence,
                         isLastSentence = isLast,
@@ -383,48 +479,96 @@ class VoiceChatManager (
 
     // * UNITY ANIMATION TRIGGERS (FIXED) *
     // All triggers now use the UnityHolder.unityPlayer instance
-    fun triggerTalking(){
-        try{
-            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayTalking", "")
-        } catch (e: Exception){
-            Log.e("VoiceChat", "Unity talking failed: ${e.message}")
+//    fun triggerTalking(){
+//        try{
+//            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayTalking", "")
+//        } catch (e: Exception){
+//            Log.e("VoiceChat", "Unity talking failed: ${e.message}")
+//        }
+//    }
+//
+//    fun triggerIdle(){
+//        try{
+//            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayIdle", "")
+//        } catch (e: Exception){
+//            Log.e("VoiceChat", "Unity idle failed: ${e.message}")
+//        }
+//    }
+//
+//    fun triggerHappy(){
+//        try{
+//            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayHappy", "")
+//        } catch (e: Exception){
+//            Log.e("VoiceChat", "Unity happy failed: ${e.message}")
+//        }
+//    }
+//
+//    fun triggerSad(){
+//        try{
+//            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlaySad", "")
+//            Log.d("VoiceChat", "inside triggerSad")
+//        } catch (e: Exception){
+//            Log.e("VoiceChat", "Unity sad failed: ${e.message}")
+//        }
+//    }
+//
+//    fun triggerSurprise(){
+//        try{
+//            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlaySurprise", "")
+//        } catch (e: Exception){
+//            Log.e("VoiceChat", "Unity surprise failed: ${e.message}")
+//        }
+//    }
+
+
+    // Helper function for safe Unity calls
+    private fun safeUnitySendMessage(objectName: String, methodName: String, message: String = "") {
+        activity.runOnUiThread {
+            try {
+                if (UnityPlayer.currentActivity != null) {
+                    UnityPlayer.UnitySendMessage(objectName, methodName, message)
+                    Log.d("VoiceChat", "UnitySendMessage sent: $objectName->$methodName")
+                } else {
+                    // Retry after a short delay
+                    Log.w("VoiceChat", "UnityPlayer not ready. Retrying in 200ms...")
+                    activity.window.decorView.postDelayed({
+                        safeUnitySendMessage(objectName, methodName, message)
+                    }, 200)
+                }
+            } catch (e: Exception) {
+                Log.e("VoiceChat", "UnitySendMessage failed: ${e.message}")
+            }
         }
+    }
+
+    // Animation triggers
+    fun triggerTalking(){
+        safeUnitySendMessage("kabu_happy_neutral", "PlayTalking")
     }
 
     fun triggerIdle(){
-        try{
-            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayIdle", "")
-        } catch (e: Exception){
-            Log.e("VoiceChat", "Unity idle failed: ${e.message}")
-        }
+        safeUnitySendMessage("kabu_happy_neutral", "PlayIdle")
     }
 
     fun triggerHappy(){
-        try{
-            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlayHappy", "")
-        } catch (e: Exception){
-            Log.e("VoiceChat", "Unity happy failed: ${e.message}")
-        }
+        safeUnitySendMessage("kabu_happy_neutral", "PlayHappy")
+        Log.d("VoiceChat", "inside triggerHappy")
     }
 
     fun triggerSad(){
-        try{
-            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlaySad", "")
-        } catch (e: Exception){
-            Log.e("VoiceChat", "Unity sad failed: ${e.message}")
-        }
+        safeUnitySendMessage("kabu_happy_neutral", "PlaySad")
+        Log.d("VoiceChat", "inside triggerSad")
     }
 
     fun triggerSurprise(){
-        try{
-            UnityPlayer.UnitySendMessage("kabu_happy_neutral", "PlaySurprise", "")
-        } catch (e: Exception){
-            Log.e("VoiceChat", "Unity surprise failed: ${e.message}")
-        }
+        safeUnitySendMessage("kabu_happy_neutral", "PlayShocked")
+        Log.d("VoiceChat", "inside triggerSurprise")
     }
 
     private fun triggerReaction(emotion: String){
         Log.d("VoiceChat", "Triggering reaction for emotion: $emotion")
+
+        triggerIdle()
 
         when (emotion.lowercase()) {
             "happy" -> triggerHappy()
