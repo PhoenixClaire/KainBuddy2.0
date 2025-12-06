@@ -6,14 +6,14 @@
 ## **Proponents**
 
 **Researchers / Proponents:**  
-- **<Arevalo, Jose Joaquin A.>** — <jose_joaquin_arevalo@dlsu.edu.ph >  
-- **<De Castro, Phoenix Claire V.>** — <phoenix_decastro@dlsu.edu.ph >  
-- **<Martin, Elaine Riz C.>** — <elaine_martin@dlsu.edu.ph >  
-- **<Uy, Dylan S.>** — <dylan_uy@dlsu.edu.ph >  
+- **Arevalo, Jose Joaquin A.** — jose_joaquin_arevalo@dlsu.edu.ph   
+- **De Castro, Phoenix Claire V.** — phoenix_decastro@dlsu.edu.ph   
+- **Martin, Elaine Riz C.** — elaine_martin@dlsu.edu.ph   
+- **Uy, Dylan S.** — dylan_uy@dlsu.edu.ph   
 
 **Adviser:**  
-- **<Jocelynn Cu>**  
-- **Email:** <jocelynn.cu@dlsu.edu.ph >
+- **Jocelynn Cu**  
+- **Email:** jocelynn.cu@dlsu.edu.ph 
 
 ---
 
