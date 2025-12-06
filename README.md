@@ -1,5 +1,5 @@
 # README.md  
-### **Enhancing Emotional Companionship Among Young Solo Diners with Mobile-Based AEC**
+### **Enhancing Emotional Companionship Among Young Solo Diners with Mobile-Based Artificial Eating Companion**
 
 ---
 
