@@ -49,6 +49,7 @@ The thesis package includes:
 
 Below is the general structure of the files included in this submission:
 
+```
 Thesis Deliverables /
 │
 ├── README.md                    
@@ -79,7 +80,7 @@ Thesis Deliverables /
     ├── Endorsement Letter.pdf
     ├── Revisions Approval Form.pdf
     └── Thesis 3 (final defense) Form.pdf
-
+```
 
 
 ---
