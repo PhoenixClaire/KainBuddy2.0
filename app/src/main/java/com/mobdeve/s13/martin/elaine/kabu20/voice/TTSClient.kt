@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 
 class TTSClient(
     private val context: Context,
-    baseUrl: String = "http://192.168.68.117:5001/tts" //IP
+    baseUrl: String = "http://172.16.17.32:5001/tts" //IP
 ) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)

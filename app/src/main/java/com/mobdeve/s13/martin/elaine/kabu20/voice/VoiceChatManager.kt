@@ -15,6 +15,7 @@ class VoiceChatManager (
     private val activity: Activity
 ){
     private val TEST_MODE = false
+//    private val TEST_MODE = true
 
     // State flags from V2 to prevent overlapping audio
     private var isSpeaking = false

@@ -73,7 +73,7 @@ class SplashScreenActivity2 : AppCompatActivity() {
             put("num_predict", 10)
         }
         val request = Request.Builder()
-            .url("http://192.168.68.117:11434/api/chat") //TODO: change this to your machine IP address
+            .url("http://172.16.17.32:11434/api/chat") //TODO: change this to your machine IP address
             .post(jsonBody.toString().toRequestBody("application/json".toMediaTypeOrNull()))
             .build()
 
